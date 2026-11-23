@@ -15,33 +15,19 @@ load_dotenv()
 # =========================================================
 
 DB_CONFIG = {
-    "host": os.getenv(
-        "MYSQLHOST",
-        os.getenv("DB_HOST", "127.0.0.1")
-    ),
-    "port": int(
-        os.getenv(
-            "MYSQLPORT",
-            os.getenv("DB_PORT", "3306")
-        )
-    ),
-    "user": os.getenv(
-        "MYSQLUSER",
-        os.getenv("DB_USER", "root")
-    ),
-    "password": os.getenv(
-        "MYSQLPASSWORD",
-        os.getenv("DB_PASSWORD", "")
-    ),
-    "database": os.getenv(
-        "MYSQLDATABASE",
-        os.getenv("DB_NAME", "dor_store")
-    ),
+    "host": os.getenv("MYSQLHOST"),
+    "port": int(os.getenv("MYSQLPORT", "3306")),
+    "user": os.getenv("MYSQLUSER", "root"),
+    "password": os.getenv("MYSQLPASSWORD", ""),
+    "database": os.getenv("MYSQLDATABASE", "railway"),
 }
 
-# Nilai awal untuk database baru
-INITIAL_VOUCH_COUNT = 66
-INITIAL_PAYMENT_COUNT = 66
+# =========================================================
+# INITIAL COUNT
+# =========================================================
+
+INITIAL_VOUCH_COUNT = 86
+INITIAL_PAYMENT_COUNT = 105
 
 
 # =========================================================
@@ -142,7 +128,7 @@ def initialize_database():
             )
         """)
 
-        # Counter vouch dimulai dari 67 jika belum ada
+        # Counter vouch dimulai dari 86 jika belum ada
         cursor.execute("""
             INSERT IGNORE INTO counters (name, value)
             VALUES ('vouch', %s)
@@ -205,7 +191,7 @@ def get_next_vouch_number():
             WHERE name = 'vouch'
         """)
 
-        # Pastikan counter tersedia jika database belum diinisialisasi
+        # Pastikan counter tersedia
         if cursor.rowcount == 0:
             cursor.execute("""
                 INSERT IGNORE INTO counters (name, value)
@@ -228,7 +214,15 @@ def get_next_vouch_number():
         result = cursor.fetchone()
         connection.commit()
 
-        return result[0] if result else INITIAL_VOUCH_COUNT + 1
+        return (
+            result[0]
+            if result
+            else INITIAL_VOUCH_COUNT + 1
+        )
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         cursor.close()
@@ -251,7 +245,6 @@ def get_payment_count():
 
         result = cursor.fetchone()
 
-        # Jika belum ada data, gunakan nilai awal 67
         if not result or result[0] is None:
             return INITIAL_PAYMENT_COUNT
 
@@ -278,7 +271,6 @@ def get_vouch_count():
 
         result = cursor.fetchone()
 
-        # Jika belum ada data, gunakan nilai awal 67
         if not result or result[0] is None:
             return INITIAL_VOUCH_COUNT
 
@@ -358,6 +350,10 @@ def record_payment(
         connection.commit()
         return cursor.lastrowid
 
+    except Exception:
+        connection.rollback()
+        raise
+
     finally:
         cursor.close()
         connection.close()
@@ -400,6 +396,10 @@ def save_ticket_log(
 
         connection.commit()
         return cursor.lastrowid
+
+    except Exception:
+        connection.rollback()
+        raise
 
     finally:
         cursor.close()
